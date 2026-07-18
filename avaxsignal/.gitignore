@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+dist/
+
+# Environment — NEVER commit .env (Rules.md security rule #2)
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Project docs (planning/internal — not committed)
+files/
+
+# Build artifacts
+*.tsbuildinfo
+
