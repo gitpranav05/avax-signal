@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "verify": "npx tsx bot/chain/verify.ts",
+    "test:price": "npx tsx bot/chain/testPriceFeed.ts",
     "dev:bot": "npx tsx bot/index.ts",
     "dev:server": "npx tsx server/index.ts"
   },
