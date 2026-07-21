@@ -6,6 +6,7 @@
   "scripts": {
     "verify": "npx tsx bot/chain/verify.ts",
     "test:price": "npx tsx bot/chain/testPriceFeed.ts",
+    "test:signals": "npx tsx bot/signals/testSignalEngine.ts",
     "dev:bot": "npx tsx bot/index.ts",
     "dev:server": "npx tsx server/index.ts"
   },

@@ -42,6 +42,70 @@ export const PriceTick = mongoose.model<IPriceTick>(
   priceTickSchema
 );
 
+// ─── Signal Schema ───────────────────────────────────────────────────
+
+export interface ISignal {
+  type: "BUY" | "SELL" | "HOLD";
+  price: number;
+  indicators: {
+    ema12: number | null;
+    ema26: number | null;
+    rsi: number | null;
+    macd: {
+      macd: number;
+      signal: number;
+      histogram: number;
+    } | null;
+    bollingerBands: {
+      upper: number;
+      middle: number;
+      lower: number;
+      bandwidth: number;
+    } | null;
+  };
+  reasons: string[];
+  timestamp: Date;
+}
+
+const signalSchema = new mongoose.Schema<ISignal>(
+  {
+    type: {
+      type: String,
+      enum: ["BUY", "SELL", "HOLD"],
+      required: true,
+      index: true,
+    },
+    price: { type: Number, required: true },
+    indicators: {
+      ema12: { type: Number, default: null },
+      ema26: { type: Number, default: null },
+      rsi: { type: Number, default: null },
+      macd: {
+        type: {
+          macd: Number,
+          signal: Number,
+          histogram: Number,
+        },
+        default: null,
+      },
+      bollingerBands: {
+        type: {
+          upper: Number,
+          middle: Number,
+          lower: Number,
+          bandwidth: Number,
+        },
+        default: null,
+      },
+    },
+    reasons: [{ type: String }],
+    timestamp: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: false }
+);
+
+export const SignalModel = mongoose.model<ISignal>("Signal", signalSchema);
+
 // ─── DB Connection ───────────────────────────────────────────────────
 
 let isConnected = false;
