@@ -1,9 +1,13 @@
 /**
- * poolReader.ts — Reads AMM pool reserves, computes price
+ * poolReader.ts — Reads on-chain AVAX price
  *
- * Phase 1: Reads WAVAX/USDC reserves from Trader Joe V1 pool on
- * Avalanche mainnet (read-only). Polls every N seconds, emits price
- * tick events, and optionally stores to MongoDB.
+ * Primary source: Chainlink AVAX/USD price feed on Avalanche mainnet.
+ * Secondary source: Trader Joe V1 WAVAX/USDC pool reserves.
+ *
+ * Chainlink is used because it aggregates prices from multiple exchanges
+ * and updates frequently. The Trader Joe V1 pool has very low volume
+ * (most activity moved to V2/V2.1 Liquidity Book) so its reserves
+ * barely change — giving a flat, stale price.
  *
  * Uses mainnet for real price data (Architecture.md: "mainnet read-only").
  * No private key needed — pure read calls.
@@ -17,7 +21,12 @@ import { PriceTick, IPriceTick, connectDB } from "../models";
 
 dotenv.config();
 
-// ─── ABIs (minimal — only the functions we call) ─────────────────────
+// ─── ABIs ────────────────────────────────────────────────────────────
+
+const CHAINLINK_ABI = [
+  "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
+  "function decimals() view returns (uint8)",
+];
 
 const FACTORY_ABI = [
   "function getPair(address tokenA, address tokenB) view returns (address pair)",
@@ -31,6 +40,11 @@ const PAIR_ABI = [
 
 // ─── Config ──────────────────────────────────────────────────────────
 
+// Chainlink AVAX/USD Price Feed on Avalanche C-Chain mainnet
+const CHAINLINK_AVAX_USD =
+  process.env.CHAINLINK_AVAX_USD ||
+  "0x0A77230d17318075983913bC2145DB16C7366156";
+
 const JOE_FACTORY =
   process.env.JOE_FACTORY_ADDRESS ||
   "0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10";
@@ -40,16 +54,13 @@ const WAVAX =
 const USDC =
   process.env.USDC_ADDRESS ||
   "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E";
-const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 10_000;
-
-// Token decimals
-const WAVAX_DECIMALS = 18;
-const USDC_DECIMALS = 6;
+const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS) || 2_000;
 
 // ─── Types ───────────────────────────────────────────────────────────
 
 export interface PriceTickEvent {
   price: number;
+  source: "chainlink" | "pool";
   reserve0: bigint;
   reserve1: bigint;
   token0: string;
@@ -61,6 +72,8 @@ export interface PriceTickEvent {
 // ─── PoolReader Class ────────────────────────────────────────────────
 
 export class PoolReader extends EventEmitter {
+  private chainlinkContract: Contract | null = null;
+  private chainlinkDecimals: number = 8;
   private pairContract: Contract | null = null;
   private pairAddress: string = "";
   private token0Address: string = "";
@@ -69,6 +82,7 @@ export class PoolReader extends EventEmitter {
   private isRunning: boolean = false;
   private dbConnected: boolean = false;
   private tickCount: number = 0;
+  private lastPrice: number = 0;
 
   constructor() {
     super();
@@ -80,96 +94,103 @@ export class PoolReader extends EventEmitter {
   }
 
   /**
-   * Initialize: find the WAVAX/USDC pair via JoeFactory, set up the pair contract.
+   * Initialize: set up Chainlink feed + optionally Trader Joe pair.
    */
   async initialize(): Promise<void> {
-    console.log("[AvaxSignal] Finding WAVAX/USDC pair on Trader Joe V1...");
-
-    const factory = new Contract(JOE_FACTORY, FACTORY_ABI, mainnetProvider!);
-
-    // Find pair address via factory
-    this.pairAddress = await withRetry(
-      () => factory.getPair(WAVAX, USDC),
-      "JoeFactory.getPair"
-    );
-
-    if (
-      !this.pairAddress ||
-      this.pairAddress === ethers.ZeroAddress
-    ) {
-      throw new Error(
-        `No WAVAX/USDC pair found on Trader Joe V1 factory (${JOE_FACTORY})`
-      );
-    }
-
-    console.log(`[AvaxSignal] ✓ Pool found: ${this.pairAddress}`);
-
-    // Set up pair contract
-    this.pairContract = new Contract(
-      this.pairAddress,
-      PAIR_ABI,
+    // 1. Chainlink AVAX/USD (primary)
+    console.log("[AvaxSignal] Setting up Chainlink AVAX/USD price feed...");
+    this.chainlinkContract = new Contract(
+      CHAINLINK_AVAX_USD,
+      CHAINLINK_ABI,
       mainnetProvider!
     );
 
-    // Determine token order (token0 vs token1) — critical for price calculation
-    this.token0Address = await withRetry(
-      () => this.pairContract!.token0(),
-      "pair.token0"
-    );
-    this.token1Address = await withRetry(
-      () => this.pairContract!.token1(),
-      "pair.token1"
+    this.chainlinkDecimals = Number(await withRetry(
+      () => this.chainlinkContract!.decimals(),
+      "chainlink.decimals"
+    ));
+    console.log(
+      `[AvaxSignal] ✓ Chainlink feed: ${CHAINLINK_AVAX_USD} (${this.chainlinkDecimals} decimals)`
     );
 
-    console.log(`[AvaxSignal]   token0: ${this.token0Address}`);
-    console.log(`[AvaxSignal]   token1: ${this.token1Address}`);
+    // 2. Trader Joe V1 pair (secondary — for reserves info)
+    try {
+      console.log("[AvaxSignal] Finding WAVAX/USDC pair on Trader Joe V1...");
+      const factory = new Contract(JOE_FACTORY, FACTORY_ABI, mainnetProvider!);
+      this.pairAddress = await withRetry(
+        () => factory.getPair(WAVAX, USDC),
+        "JoeFactory.getPair"
+      );
+
+      if (this.pairAddress && this.pairAddress !== ethers.ZeroAddress) {
+        this.pairContract = new Contract(
+          this.pairAddress,
+          PAIR_ABI,
+          mainnetProvider!
+        );
+        this.token0Address = await withRetry(
+          () => this.pairContract!.token0(),
+          "pair.token0"
+        );
+        this.token1Address = await withRetry(
+          () => this.pairContract!.token1(),
+          "pair.token1"
+        );
+        console.log(`[AvaxSignal] ✓ Pool found: ${this.pairAddress}`);
+      }
+    } catch (err) {
+      console.warn(
+        "[AvaxSignal] ⚠ Trader Joe pair not available (Chainlink only mode)"
+      );
+    }
   }
 
   /**
-   * Read reserves and compute the current AVAX price in USDC.
+   * Read the latest AVAX/USD price from Chainlink.
    */
   async readPrice(): Promise<PriceTickEvent> {
-    if (!this.pairContract) {
+    if (!this.chainlinkContract) {
       throw new Error("PoolReader not initialized. Call initialize() first.");
     }
 
-    const [reserve0, reserve1] = await withRetry(
-      () => this.pairContract!.getReserves(),
-      "pair.getReserves"
+    const [, answer] = await withRetry(
+      () => this.chainlinkContract!.latestRoundData(),
+      "chainlink.latestRoundData"
     );
 
-    // Determine which reserve is WAVAX and which is USDC
-    const isToken0WAVAX =
-      this.token0Address.toLowerCase() === WAVAX.toLowerCase();
+    // answer is a BigInt in ethers v6 — convert safely
+    const price = Number(BigInt(answer)) / Math.pow(10, this.chainlinkDecimals);
 
-    const wavaxReserve = isToken0WAVAX ? reserve0 : reserve1;
-    const usdcReserve = isToken0WAVAX ? reserve1 : reserve0;
+    // Optionally read pool reserves (non-blocking, for info only)
+    let reserve0 = 0n;
+    let reserve1 = 0n;
 
-    // Compute price: USDC per AVAX
-    // Adjust for decimal difference (WAVAX=18, USDC=6)
-    // price = (usdcReserve / 10^6) / (wavaxReserve / 10^18)
-    //       = (usdcReserve * 10^18) / (wavaxReserve * 10^6)
-    //       = (usdcReserve * 10^12) / wavaxReserve
-    const decimalAdjustment = 10n ** BigInt(WAVAX_DECIMALS - USDC_DECIMALS); // 10^12
-    const price =
-      Number((usdcReserve * decimalAdjustment * 10000n) / wavaxReserve) /
-      10000;
+    if (this.pairContract) {
+      try {
+        const reserves = await this.pairContract.getReserves();
+        reserve0 = BigInt(reserves[0]);
+        reserve1 = BigInt(reserves[1]);
+      } catch {
+        // Non-fatal
+      }
+    }
 
-    const tick: PriceTickEvent = {
+    this.lastPrice = price;
+
+    return {
       price,
-      reserve0: BigInt(reserve0),
-      reserve1: BigInt(reserve1),
+      source: "chainlink",
+      reserve0,
+      reserve1,
       token0: this.token0Address,
       token1: this.token1Address,
       poolAddress: this.pairAddress,
       timestamp: new Date(),
     };
-
-    return tick;
   }
 
   /**
-   * Start polling the pool for price ticks.
+   * Start polling for price ticks.
    */
   async start(persistToDb: boolean = true): Promise<void> {
     if (this.isRunning) {
@@ -179,20 +200,17 @@ export class PoolReader extends EventEmitter {
 
     await this.initialize();
 
-    // Optionally connect to MongoDB
     if (persistToDb) {
       this.dbConnected = await connectDB();
     }
 
     this.isRunning = true;
     console.log(
-      `[AvaxSignal] Polling price every ${POLL_INTERVAL_MS / 1000}s...`
+      `[AvaxSignal] Polling price every ${POLL_INTERVAL_MS / 1000}s (Chainlink AVAX/USD)...`
     );
 
-    // Do one immediate read
     await this.pollOnce();
 
-    // Then set up interval
     this.pollTimer = setInterval(() => {
       this.pollOnce().catch((err) => {
         console.error("[AvaxSignal] Poll error:", err.message || err);
@@ -201,22 +219,22 @@ export class PoolReader extends EventEmitter {
   }
 
   /**
-   * Single poll iteration — read price, emit event, optionally persist.
+   * Single poll iteration.
    */
   private async pollOnce(): Promise<void> {
     try {
       const tick = await this.readPrice();
       this.tickCount++;
 
-      console.log(
-        `[AvaxSignal] Tick #${this.tickCount} — AVAX/USDC: $${tick.price.toFixed(4)} | ` +
-          `Reserves: ${ethers.formatEther(tick.reserve0)} / ${ethers.formatUnits(tick.reserve1, USDC_DECIMALS)}`
-      );
+      // Log every 5th tick to reduce noise at 2s intervals
+      if (this.tickCount % 5 === 1 || this.tickCount <= 3) {
+        console.log(
+          `[AvaxSignal] Tick #${this.tickCount} — AVAX/USD: $${tick.price.toFixed(4)} (Chainlink)`
+        );
+      }
 
-      // Emit event for downstream consumers (signal engine, socket.io, etc.)
       this.emit("priceTick", tick);
 
-      // Persist to MongoDB if connected
       if (this.dbConnected) {
         try {
           await PriceTick.create({
@@ -231,7 +249,7 @@ export class PoolReader extends EventEmitter {
           });
         } catch (dbErr) {
           console.warn(
-            "[AvaxSignal] ⚠ Failed to save tick to MongoDB:",
+            "[AvaxSignal] ⚠ Failed to save tick:",
             dbErr instanceof Error ? dbErr.message : dbErr
           );
         }
@@ -244,9 +262,6 @@ export class PoolReader extends EventEmitter {
     }
   }
 
-  /**
-   * Stop polling.
-   */
   stop(): void {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
@@ -258,15 +273,7 @@ export class PoolReader extends EventEmitter {
     );
   }
 
-  /**
-   * Get current state info.
-   */
-  getInfo(): {
-    isRunning: boolean;
-    tickCount: number;
-    pairAddress: string;
-    pollIntervalMs: number;
-  } {
+  getInfo() {
     return {
       isRunning: this.isRunning,
       tickCount: this.tickCount,

@@ -106,6 +106,35 @@ const signalSchema = new mongoose.Schema<ISignal>(
 
 export const SignalModel = mongoose.model<ISignal>("Signal", signalSchema);
 
+// ─── Trade Schema ────────────────────────────────────────────────────
+
+export interface ITrade {
+  type: "BUY" | "SELL";
+  price: number;
+  amount: number;
+  value: number;
+  pnl: number;
+  pnlPercent: number;
+  balance: number;
+  timestamp: Date;
+}
+
+const tradeSchema = new mongoose.Schema<ITrade>(
+  {
+    type: { type: String, enum: ["BUY", "SELL"], required: true, index: true },
+    price: { type: Number, required: true },
+    amount: { type: Number, required: true },
+    value: { type: Number, required: true },
+    pnl: { type: Number, default: 0 },
+    pnlPercent: { type: Number, default: 0 },
+    balance: { type: Number, required: true },
+    timestamp: { type: Date, default: Date.now, index: true },
+  },
+  { timestamps: false }
+);
+
+export const TradeModel = mongoose.model<ITrade>("Trade", tradeSchema);
+
 // ─── DB Connection ───────────────────────────────────────────────────
 
 let isConnected = false;

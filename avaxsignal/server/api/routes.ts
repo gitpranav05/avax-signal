@@ -1,12 +1,30 @@
 /**
- * server/api/routes.ts — Express API routes
- *
- * Implemented in Phase 3. See Phases.md.
- *
- * Endpoints planned:
- *   - GET /api/signals — recent signals
- *   - GET /api/trades — simulated trade log
- *   - GET /api/portfolio — current simulated portfolio state
+ * routes.ts — Express API routes
  */
 
-export {};
+import { Router } from "express";
+import { getBotStatus, getRecentData } from "../../bot";
+
+const router = Router();
+
+router.get("/status", (_req, res) => {
+  res.json(getBotStatus());
+});
+
+router.get("/signals", (_req, res) => {
+  res.json(getRecentData().signals);
+});
+
+router.get("/trades", (_req, res) => {
+  res.json(getRecentData().trades);
+});
+
+router.get("/portfolio", (_req, res) => {
+  res.json(getRecentData().portfolio);
+});
+
+router.get("/prices", (_req, res) => {
+  res.json(getRecentData().prices);
+});
+
+export default router;
