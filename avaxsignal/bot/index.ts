@@ -52,7 +52,6 @@ export async function startBot(): Promise<void> {
 
   // Wire: PoolReader → SignalEngine → PaperBroker
   poolReader.on("priceTick", (tick: PriceTickEvent) => {
-    // Serialize price (strip BigInt reserves — not needed downstream)
     const serialized: SerializedPriceTick = {
       price: tick.price,
       timestamp: tick.timestamp.toISOString(),
@@ -65,14 +64,13 @@ export async function startBot(): Promise<void> {
     botEvents.emit("priceTick", serialized);
 
     // Always feed indicators (every tick) — needed for fast warmup (~70s)
-    // and to keep indicator values updating on the dashboard
     const signal = signalEngine!.processPrice(tick.price);
 
-    // Always emit indicator snapshot (dashboard shows live values)
+    // Always emit indicator snapshot (dashboard panel updates live)
     botEvents.emit("signal", signal);
 
     // Only process BUY/SELL trades when price actually changes
-    // This prevents RSI=100 SELL spam from duplicate prices
+    // Prevents RSI=100 SELL spam from duplicate prices
     if (tick.price === lastSignalPrice) return;
     lastSignalPrice = tick.price;
 

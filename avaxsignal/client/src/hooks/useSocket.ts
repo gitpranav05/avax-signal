@@ -59,7 +59,10 @@ export function useSocket() {
   const [latestIndicators, setLatestIndicators] = useState<IndicatorSnapshot | null>(null)
 
   useEffect(() => {
-    const socket = io('http://localhost:3001', {
+    // Dynamic URL: works on localhost AND on VM/production
+    const socketUrl = `http://${window.location.hostname}:3001`
+
+    const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,

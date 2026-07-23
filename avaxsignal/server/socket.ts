@@ -13,7 +13,7 @@ let io: SocketIOServer | null = null;
 export function initSocket(httpServer: HTTPServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: ["http://localhost:5173", "http://localhost:3001"],
+      origin: "*",
       methods: ["GET", "POST"],
     },
   });
@@ -36,10 +36,6 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
   });
 
   botEvents.on("signal", (signal) => {
-    // Always send indicator snapshot (dashboard panel updates live)
-    io!.emit("indicatorUpdate", signal.indicators);
-
-    // Only send BUY/SELL to the signal feed (not HOLD)
     if (signal.type !== "HOLD") {
       io!.emit("signal", {
         type: signal.type,
