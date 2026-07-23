@@ -24,6 +24,7 @@
   --radius-md: 8px;
 }
 
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; overflow: hidden; }
 
@@ -201,3 +202,89 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ─── Wallet Panel (Phase 4) ─────────────────────────────────────── */
+
+.wallet-panel {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  background: var(--bg-surface);
+}
+
+.wallet-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.wallet-title {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.wallet-network-badge {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 7px; border-radius: var(--radius-sm);
+  background: var(--info-bg); color: var(--info); border: 1px solid rgba(245,166,35,0.3);
+}
+
+.wallet-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+
+.wallet-row { display: flex; align-items: center; justify-content: space-between; }
+
+.wallet-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+.wallet-value { font-family: var(--font-data); font-size: 12px; color: var(--text-primary); }
+
+.wallet-address { color: var(--text-secondary); cursor: default; }
+
+.wallet-balance { color: var(--buy); font-weight: 600; }
+
+.wallet-error, .wallet-loading {
+  font-size: 12px; color: var(--text-muted); padding: 8px 0; margin-bottom: 10px;
+}
+.wallet-error { color: var(--sell); }
+
+.swap-btn {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--accent); background: rgba(232, 65, 66, 0.1);
+  color: var(--accent); font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center;
+  justify-content: center; gap: 6px;
+}
+.swap-btn:hover:not(:disabled) { background: rgba(232, 65, 66, 0.2); transform: translateY(-1px); }
+.swap-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.swap-btn--success { border-color: var(--buy); background: var(--buy-bg); color: var(--buy); }
+.swap-btn--loading { border-color: var(--info); background: var(--info-bg); color: var(--info); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.swap-spinner {
+  width: 12px; height: 12px; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: inline-block;
+}
+
+.swap-result {
+  margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-md);
+  border: 1px solid; font-size: 12px;
+}
+.swap-result--success { border-color: var(--buy-border); background: var(--buy-bg); }
+.swap-result--error { border-color: var(--sell-border); background: var(--sell-bg); }
+
+.swap-result-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; }
+
+.swap-tx-link {
+  font-family: var(--font-data); font-size: 13px; font-weight: 600;
+  color: var(--buy); text-decoration: none; display: flex; align-items: center; gap: 4px;
+}
+.swap-tx-link:hover { text-decoration: underline; }
+.swap-external-icon { font-size: 10px; }
+.swap-result-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.swap-error-msg { color: var(--sell); font-size: 12px; margin-bottom: 8px; word-break: break-word; }
+.swap-retry-btn {
+  font-size: 11px; padding: 4px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--sell-border); background: transparent; color: var(--sell);
+  cursor: pointer;
+}
+.swap-retry-btn:hover { background: var(--sell-bg); }
+

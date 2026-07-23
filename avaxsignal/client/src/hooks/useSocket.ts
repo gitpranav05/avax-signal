@@ -97,7 +97,10 @@ export function useSocket() {
 
     socket.on('signal', (signal: Signal) => {
       setSignals(prev => [signal, ...prev].slice(0, 100))
-      setLatestIndicators(signal.indicators)
+    })
+
+    socket.on('indicatorUpdate', (indicators: IndicatorSnapshot) => {
+      setLatestIndicators(indicators)
     })
 
     socket.on('trade', (trade: Trade) => {

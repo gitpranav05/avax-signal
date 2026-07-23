@@ -5,6 +5,7 @@ import { PriceChart } from './components/PriceChart'
 import { IndicatorPanel } from './components/IndicatorPanel'
 import { SignalFeed } from './components/SignalFeed'
 import { PortfolioPanel } from './components/Portfolio'
+import { WalletPanel } from './components/WalletPanel'
 
 const App: React.FC = () => {
   const { status, prices, signals, portfolio, latestIndicators } = useSocket()
@@ -19,6 +20,7 @@ const App: React.FC = () => {
           <IndicatorPanel indicators={latestIndicators} />
         </div>
         <div className="right-panel">
+          <WalletPanel />
           <SignalFeed signals={signals} />
         </div>
       </div>

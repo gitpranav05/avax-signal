@@ -48,7 +48,7 @@ export async function startBot(): Promise<void> {
   signalEngine = new SignalEngine();
   paperBroker = new PaperBroker();
 
-  let lastProcessedPrice = 0;
+  let lastSignalPrice = 0;
 
   // Wire: PoolReader → SignalEngine → PaperBroker
   poolReader.on("priceTick", (tick: PriceTickEvent) => {
@@ -64,18 +64,25 @@ export async function startBot(): Promise<void> {
     // Always relay price to dashboard (chart updates in real-time)
     botEvents.emit("priceTick", serialized);
 
-    // Only feed indicators when price ACTUALLY changes
-    // Chainlink updates every ~30s, we poll every 2s, so skip duplicates
-    if (tick.price === lastProcessedPrice) return;
-    lastProcessedPrice = tick.price;
-
-    // Feed into signal engine (only on real price changes)
+    // Always feed indicators (every tick) — needed for fast warmup (~70s)
+    // and to keep indicator values updating on the dashboard
     const signal = signalEngine!.processPrice(tick.price);
-    recentSignals.push(signal);
-    if (recentSignals.length > MAX_RECENT) recentSignals.shift();
+
+    // Always emit indicator snapshot (dashboard shows live values)
     botEvents.emit("signal", signal);
 
-    // Feed into paper broker
+    // Only process BUY/SELL trades when price actually changes
+    // This prevents RSI=100 SELL spam from duplicate prices
+    if (tick.price === lastSignalPrice) return;
+    lastSignalPrice = tick.price;
+
+    // Only store meaningful signals (on price changes)
+    if (signal.type !== "HOLD") {
+      recentSignals.push(signal);
+      if (recentSignals.length > MAX_RECENT) recentSignals.shift();
+    }
+
+    // Feed into paper broker (only on price changes)
     const trade = paperBroker!.processSignal(signal);
     if (trade) {
       botEvents.emit("trade", trade);
