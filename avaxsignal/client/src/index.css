@@ -288,3 +288,97 @@ body {
 }
 .swap-retry-btn:hover { background: var(--sell-bg); }
 
+/* ─── Info Bar ───────────────────────────────────────────────────── */
+
+.info-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 16px; gap: 12px;
+  background: rgba(245, 166, 35, 0.05);
+  border-bottom: 1px solid rgba(245, 166, 35, 0.15);
+  flex-wrap: wrap;
+}
+
+.info-bar-items {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+.info-pill {
+  font-size: 11px; font-weight: 500; padding: 3px 10px;
+  border-radius: 100px; white-space: nowrap;
+}
+.info-pill--paper  { background: rgba(245,166,35,0.1); color: #F5A623; border: 1px solid rgba(245,166,35,0.2); }
+.info-pill--chain  { background: rgba(46,204,113,0.08); color: var(--buy); border: 1px solid rgba(46,204,113,0.2); }
+.info-pill--testnet{ background: var(--sell-bg); color: var(--sell); border: 1px solid var(--sell-border); }
+
+.info-how-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 12px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg-elevated); color: var(--text-secondary);
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.info-how-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+/* ─── Modal ─────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-box {
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 12px; width: 540px; max-width: calc(100vw - 32px);
+  max-height: 90vh; overflow-y: auto;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+
+.modal-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--text-primary); }
+
+.modal-steps { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+.modal-step {
+  display: flex; gap: 14px; align-items: flex-start;
+}
+
+.modal-step-num {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: var(--accent); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+
+.modal-step-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.modal-step-desc  { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.modal-step-desc strong { color: var(--text-primary); }
+
+.modal-footer {
+  padding: 14px 20px; border-top: 1px solid var(--border);
+}
+
+.modal-note {
+  font-size: 11px; color: var(--text-muted);
+}
+
+
