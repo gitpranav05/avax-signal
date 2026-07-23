@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AvaxSignal — On-Chain Trading Signals for Avalanche DeFi</title>
+  <meta name="description" content="AvaxSignal reads live Chainlink price data, runs EMA/RSI/MACD/Bollinger Bands indicators, and surfaces real-time buy/sell signals for Avalanche DeFi — with testnet execution from your dashboard." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080B0F;
+      --bg-surface: #0F1318;
+      --bg-card: #131920;
+      --border: #1E2530;
+      --border-glow: rgba(232, 65, 66, 0.3);
+      --red: #E84142;
+      --red-dim: rgba(232, 65, 66, 0.12);
+      --green: #2ECC71;
+      --green-dim: rgba(46, 204, 113, 0.1);
+      --text: #E8EAED;
+      --text-sub: #8B93A1;
+      --text-muted: #4A5260;
+      --font: 'Inter', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ── Grid Background ─────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(232,65,66,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,65,66,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ─────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 6vw;
+      height: 64px;
+      background: rgba(8, 11, 15, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .nav-logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--red);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-sub); text-decoration: none; font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta {
+      background: var(--red); color: white !important;
+      padding: 8px 20px; border-radius: 8px;
+      font-weight: 600; font-size: 14px !important;
+      transition: opacity 0.2s, transform 0.2s !important;
+    }
+    .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* ── HERO ─────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 6vw 80px;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--red-dim); border: 1px solid var(--border-glow);
+      color: var(--red); font-size: 12px; font-weight: 600;
+      padding: 6px 16px; border-radius: 100px; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 28px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--red);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero h1 {
+      font-size: clamp(38px, 6vw, 78px);
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, #E84142 0%, #FF6B6B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--text-sub); max-width: 620px;
+      margin: 0 auto 40px; line-height: 1.7;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .hero-buttons {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center;
+      animation: fadeUp 0.6s 0.3s ease both;
+      margin-bottom: 64px;
+    }
+
+    .btn-primary {
+      background: var(--red); color: white;
+      padding: 14px 32px; border-radius: 12px;
+      font-size: 16px; font-weight: 700; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 0 40px rgba(232,65,66,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 60px rgba(232,65,66,0.5);
+    }
+
+    .btn-secondary {
+      background: var(--bg-card); color: var(--text);
+      padding: 14px 32px; border-radius: 12px;
+      font-size: 16px; font-weight: 600; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+    }
+
+    /* ── LIVE TICKER ─────────────────────── */
+    .ticker-bar {
+      display: flex; align-items: center; gap: 32px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 16px 28px;
+      animation: fadeUp 0.6s 0.4s ease both;
+      flex-wrap: wrap; justify-content: center;
+    }
+
+    .ticker-item {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .ticker-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .ticker-value {
+      font-family: var(--mono); font-size: 15px; font-weight: 600;
+      color: var(--text);
+    }
+
+    .ticker-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .badge-live { background: rgba(46,204,113,0.15); color: var(--green); }
+    .badge-testnet { background: rgba(245,166,35,0.1); color: #F5A623; }
+    .badge-chain { background: var(--red-dim); color: var(--red); }
+
+    .ticker-divider {
+      width: 1px; height: 24px; background: var(--border);
+    }
+
+    /* ── CHART PREVIEW ───────────────────── */
+    .chart-preview {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 80px auto;
+      padding: 0 6vw;
+      animation: fadeUp 0.6s 0.5s ease both;
+    }
+
+    .chart-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(232,65,66,0.1),
+        0 40px 80px rgba(0,0,0,0.6),
+        0 0 100px rgba(232,65,66,0.05);
+    }
+
+    .chart-titlebar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-surface);
+    }
+
+    .chart-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+    }
+    .dot-red { background: #FF5F57; }
+    .dot-yellow { background: #FFBD2E; }
+    .dot-green { background: #28C840; }
+
+    .chart-title {
+      font-size: 13px; color: var(--text-sub); margin-left: 4px;
+      font-weight: 500;
+    }
+
+    .chart-body {
+      padding: 24px;
+    }
+
+    /* Animated chart SVG */
+    .chart-svg-wrap {
+      width: 100%; aspect-ratio: 16/5;
+      position: relative;
+    }
+
+    .chart-svg-wrap svg { width: 100%; height: 100%; }
+
+    .chart-line {
+      fill: none;
+      stroke: var(--red);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 8px rgba(232,65,66,0.6));
+      stroke-dasharray: 2000;
+      stroke-dashoffset: 2000;
+      animation: drawLine 2s ease forwards 0.8s;
+    }
+
+    .chart-area {
+      fill: url(#areaGrad);
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards 2.5s;
+    }
+
+    @keyframes drawLine {
+      to { stroke-dashoffset: 0; }
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    /* Signal dots on chart */
+    .signal-dot {
+      animation: popIn 0.3s ease both;
+    }
+    .signal-dot.buy { fill: var(--green); filter: drop-shadow(0 0 6px rgba(46,204,113,0.8)); }
+    .signal-dot.sell { fill: var(--red); filter: drop-shadow(0 0 6px rgba(232,65,66,0.8)); }
+
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      70% { transform: scale(1.3); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── STATS ROW ───────────────────────── */
+    .stats {
+      position: relative; z-index: 1;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      max-width: 900px; margin: 0 auto 100px;
+      padding: 0 6vw;
+      background: var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      padding: 32px 28px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 36px; font-weight: 800;
+      font-family: var(--mono);
+      background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: block; margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-size: 13px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ── FEATURES ────────────────────────── */
+    .section {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto 120px;
+      padding: 0 6vw;
+    }
+
+    .section-tag {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--red); font-weight: 600; margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800; letter-spacing: -1px;
+      margin-bottom: 16px; line-height: 1.1;
+    }
+
+    .section-sub {
+      font-size: 17px; color: var(--text-sub); max-width: 500px;
+      line-height: 1.7; margin-bottom: 56px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      cursor: default;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 40px rgba(232,65,66,0.08);
+    }
+
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 20px;
+      background: var(--red-dim); border: 1px solid var(--border-glow);
+    }
+
+    .feature-title {
+      font-size: 17px; font-weight: 700; margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      font-size: 14px; color: var(--text-sub); line-height: 1.7;
+    }
+
+    .feature-tag {
+      display: inline-block; margin-top: 16px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 3px 10px; border-radius: 4px;
+    }
+    .tag-live { background: var(--green-dim); color: var(--green); }
+    .tag-onchain { background: var(--red-dim); color: var(--red); }
+    .tag-realtime { background: rgba(245,166,35,0.1); color: #F5A623; }
+
+    /* ── HOW IT WORKS ────────────────────── */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-step {
+      flex: 1; min-width: 160px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 20px;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .pipeline-step:hover { border-color: var(--border-glow); }
+
+    .pipeline-arrow {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 20px;
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+
+    .pipeline-num {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--red); margin-bottom: 8px;
+    }
+
+    .pipeline-name {
+      font-size: 15px; font-weight: 700; margin-bottom: 6px;
+    }
+
+    .pipeline-detail {
+      font-size: 12px; color: var(--text-muted);
+    }
+
+    /* ── CTA ──────────────────────────────── */
+    .cta-section {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 100px 6vw;
+      border-top: 1px solid var(--border);
+    }
+
+    .cta-glow {
+      position: absolute;
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse, rgba(232,65,66,0.15) 0%, transparent 70%);
+      left: 50%; top: 50%; transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .cta-section h2 {
+      font-size: clamp(28px, 4vw, 52px);
+      font-weight: 800; letter-spacing: -1.5px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .cta-section p {
+      font-size: 18px; color: var(--text-sub);
+      margin-bottom: 40px; position: relative;
+    }
+
+    /* ── FOOTER ──────────────────────────── */
+    footer {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 24px 6vw;
+      border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--text-muted);
+      flex-wrap: wrap; gap: 12px;
+    }
+
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    .footer-links { display: flex; gap: 24px; }
+
+    /* ── ANIMATIONS ─────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0; transform: translateY(32px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── RESPONSIVE ─────────────────────── */
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .ticker-divider { display: none; }
+      .pipeline-arrow { display: none; }
+      .pipeline { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">⚡</div>
+      AvaxSignal
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How it works</a></li>
+      <li><a href="https://github.com/gitpranav05/avax-signal" target="_blank">GitHub</a></li>
+      <li><a href="#launch" class="nav-cta">Launch App →</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Live on Avalanche Fuji Testnet
+    </div>
+
+    <h1>
+      Systematic Trading<br/>
+      Signals for <span>Avalanche DeFi</span>
+    </h1>
+
+    <p class="hero-sub">
+      AvaxSignal reads live Chainlink price data, runs proven technical indicators,
+      and surfaces real-time BUY/SELL signals — with testnet swap execution
+      directly from your dashboard.
+    </p>
+
+    <div class="hero-buttons">
+      <a href="http://8.231.112.235:4173" class="btn-primary" target="_blank">
+        ⚡ Launch Dashboard
+      </a>
+      <a href="https://github.com/gitpranav05/avax-signal" class="btn-secondary" target="_blank">
+        ★ View on GitHub
+      </a>
+    </div>
+
+    <!-- Live Ticker -->
+    <div class="ticker-bar">
+      <div class="ticker-item">
+        <span class="ticker-label">Status</span>
+        <span class="ticker-badge badge-live">● Live</span>
+      </div>
+      <div class="ticker-divider"></div>
+      <div class="ticker-item">
+        <span class="ticker-label">Network</span>
+        <span class="ticker-badge badge-testnet">⛰ Fuji Testnet</span>
+      </div>
+      <div class="ticker-divider"></div>
+      <div class="ticker-item">
+        <span class="ticker-label">Price Feed</span>
+        <span class="ticker-value">Chainlink AVAX/USD</span>
+      </div>
+      <div class="ticker-divider"></div>
+      <div class="ticker-item">
+        <span class="ticker-label">Update</span>
+        <span class="ticker-value">Every 2s</span>
+      </div>
+      <div class="ticker-divider"></div>
+      <div class="ticker-item">
+        <span class="ticker-label">Chain</span>
+        <span class="ticker-badge badge-chain">AVAX C-Chain</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHART PREVIEW -->
+  <div class="chart-preview reveal">
+    <div class="chart-window">
+      <div class="chart-titlebar">
+        <div class="chart-dot dot-red"></div>
+        <div class="chart-dot dot-yellow"></div>
+        <div class="chart-dot dot-green"></div>
+        <span class="chart-title">AvaxSignal Dashboard — AVAX/USD Live</span>
+      </div>
+      <div class="chart-body">
+        <div class="chart-svg-wrap">
+          <svg viewBox="0 0 1000 200" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#E84142" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#E84142" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Grid lines -->
+            <line x1="0" y1="50" x2="1000" y2="50" stroke="#1E2530" stroke-width="1"/>
+            <line x1="0" y1="100" x2="1000" y2="100" stroke="#1E2530" stroke-width="1"/>
+            <line x1="0" y1="150" x2="1000" y2="150" stroke="#1E2530" stroke-width="1"/>
+
+            <!-- Price area fill -->
+            <path class="chart-area" d="
+              M0,160 L50,155 L100,148 L150,152 L200,140 L250,135 L300,130 L350,125
+              L400,118 L450,122 L500,110 L550,105 L600,95 L650,100 L700,88
+              L750,80 L800,85 L850,75 L900,65 L950,60 L1000,50
+              L1000,200 L0,200 Z
+            "/>
+
+            <!-- Price line -->
+            <path class="chart-line" d="
+              M0,160 L50,155 L100,148 L150,152 L200,140 L250,135 L300,130 L350,125
+              L400,118 L450,122 L500,110 L550,105 L600,95 L650,100 L700,88
+              L750,80 L800,85 L850,75 L900,65 L950,60 L1000,50
+            "/>
+
+            <!-- BUY signals -->
+            <circle class="signal-dot buy" cx="200" cy="140" r="6" style="animation-delay:2.2s"/>
+            <circle class="signal-dot buy" cx="500" cy="110" r="6" style="animation-delay:2.4s"/>
+            <circle class="signal-dot buy" cx="750" cy="80" r="6" style="animation-delay:2.6s"/>
+
+            <!-- SELL signals -->
+            <circle class="signal-dot sell" cx="350" cy="125" r="6" style="animation-delay:2.3s"/>
+            <circle class="signal-dot sell" cx="650" cy="100" r="6" style="animation-delay:2.5s"/>
+
+            <!-- Labels -->
+            <text x="8" y="46" font-family="JetBrains Mono" font-size="10" fill="#4A5260">$7.20</text>
+            <text x="8" y="96" font-family="JetBrains Mono" font-size="10" fill="#4A5260">$6.80</text>
+            <text x="8" y="146" font-family="JetBrains Mono" font-size="10" fill="#4A5260">$6.40</text>
+
+            <!-- Signal labels -->
+            <text x="188" y="165" font-family="Inter" font-size="9" fill="#2ECC71" font-weight="600">BUY</text>
+            <text x="338" y="120" font-family="Inter" font-size="9" fill="#E84142" font-weight="600">SELL</text>
+            <text x="488" y="127" font-family="Inter" font-size="9" fill="#2ECC71" font-weight="600">BUY</text>
+            <text x="638" y="95" font-family="Inter" font-size="9" fill="#E84142" font-weight="600">SELL</text>
+            <text x="738" y="75" font-family="Inter" font-size="9" fill="#2ECC71" font-weight="600">BUY</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats reveal">
+    <div class="stat-card">
+      <span class="stat-value">4</span>
+      <span class="stat-label">Technical Indicators</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">2s</span>
+      <span class="stat-label">Price Update Speed</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">100%</span>
+      <span class="stat-label">On-Chain Data</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Real Funds at Risk</span>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="section reveal" id="features">
+    <div class="section-tag">Core Features</div>
+    <h2 class="section-title">Everything a DeFi<br/>trader needs</h2>
+    <p class="section-sub">Built on real on-chain data. No CEX APIs. No mock prices. Just Avalanche.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <div class="feature-title">Live Chainlink Price Feed</div>
+        <div class="feature-desc">
+          Reads directly from the Chainlink AVAX/USD oracle on Avalanche mainnet. Updated every 2 seconds — no middleman, no delay.
+        </div>
+        <span class="feature-tag tag-live">● Live</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">4 Technical Indicators</div>
+        <div class="feature-desc">
+          EMA (12/26), RSI (14), MACD (12/26/9), and Bollinger Bands (20) — all running on streaming on-chain data with real-time panel updates.
+        </div>
+        <span class="feature-tag tag-realtime">Real-time</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-title">Rule-Based Signal Engine</div>
+        <div class="feature-desc">
+          Multi-indicator confirmation signals: RSI oversold + price at lower Bollinger Band = BUY. MACD histogram crossover for extra confirmation.
+        </div>
+        <span class="feature-tag tag-onchain">On-chain</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">💼</div>
+        <div class="feature-title">Paper Trading Simulator</div>
+        <div class="feature-desc">
+          Simulates trades based on signals with 25% position sizing. Tracks P&L, win rate, unrealized gains — all in real-time on the dashboard.
+        </div>
+        <span class="feature-tag tag-live">● Live P&L</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⛓️</div>
+        <div class="feature-title">Testnet Swap Execution</div>
+        <div class="feature-desc">
+          Real on-chain swap triggered from the UI — wallet panel shows your Fuji AVAX balance, one-click execution, transaction hash on Snowtrace.
+        </div>
+        <span class="feature-tag tag-onchain">Fuji Testnet</span>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-title">Safety First</div>
+        <div class="feature-desc">
+          Testnet-only execution — private key never touches mainnet. Chain ID 43113 validated before every tx. Pre-sign log before every transaction.
+        </div>
+        <span class="feature-tag tag-realtime">No Real Funds</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section reveal" id="how-it-works">
+    <div class="section-tag">Architecture</div>
+    <h2 class="section-title">How it works</h2>
+    <p class="section-sub">Four layers, all running on real Avalanche C-Chain data.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-num">01</div>
+        <div class="pipeline-name">Price Feed</div>
+        <div class="pipeline-detail">Chainlink AVAX/USD oracle · Trader Joe V1 pool · 2s polling</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">02</div>
+        <div class="pipeline-name">Indicators</div>
+        <div class="pipeline-detail">EMA · RSI · MACD · Bollinger Bands — streaming calculation</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">03</div>
+        <div class="pipeline-name">Signals</div>
+        <div class="pipeline-detail">Multi-indicator rule engine → BUY / SELL / HOLD + reasons</div>
+      </div>
+      <div class="pipeline-arrow">→</div>
+      <div class="pipeline-step">
+        <div class="pipeline-num">04</div>
+        <div class="pipeline-name">Dashboard</div>
+        <div class="pipeline-detail">React + Socket.IO · Live chart · Paper trades · Testnet execution</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section reveal" id="launch">
+    <div class="cta-glow"></div>
+    <h2>Start trading smarter<br/>on Avalanche</h2>
+    <p>Live dashboard. Real on-chain data. No signup required.</p>
+    <div class="hero-buttons">
+      <a href="http://8.231.112.235:4173" class="btn-primary" target="_blank">
+        ⚡ Launch Dashboard
+      </a>
+      <a href="https://github.com/gitpranav05/avax-signal/blob/main/avaxsignal/files/Litepaper.md" class="btn-secondary" target="_blank">
+        📄 Read Litepaper
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>© 2026 AvaxSignal — Built on Avalanche</span>
+    <div class="footer-links">
+      <a href="https://github.com/gitpranav05/avax-signal" target="_blank">GitHub</a>
+      <a href="https://github.com/gitpranav05/avax-signal/blob/main/avaxsignal/files/Litepaper.md" target="_blank">Litepaper</a>
+      <a href="https://testnet.snowtrace.io" target="_blank">Snowtrace</a>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible')
+          observer.unobserve(e.target)
+        }
+      })
+    }, { threshold: 0.1 })
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+  </script>
+</body>
+</html>
