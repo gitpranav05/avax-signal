@@ -36,6 +36,12 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
   });
 
   botEvents.on("signal", (signal) => {
+    // Always push indicator snapshot → panel stays live (every tick)
+    if (signal.indicators) {
+      io!.emit("indicatorUpdate", signal.indicators);
+    }
+
+    // Only push BUY/SELL to the signal feed
     if (signal.type !== "HOLD") {
       io!.emit("signal", {
         type: signal.type,
