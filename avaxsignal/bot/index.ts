@@ -134,3 +134,23 @@ export function getRecentData() {
     portfolio: paperBroker?.getPortfolio() || null,
   };
 }
+
+export function triggerManualBuy() {
+  if (!paperBroker) return null;
+  const trade = paperBroker.manualBuy();
+  if (trade) botEvents.emit("trade", trade);
+  return trade;
+}
+
+export function triggerManualSell() {
+  if (!paperBroker) return null;
+  const trade = paperBroker.manualSell();
+  if (trade) botEvents.emit("trade", trade);
+  return trade;
+}
+
+export function resetPaperPortfolio() {
+  if (!paperBroker) return null;
+  recentSignals.length = 0;
+  return paperBroker.reset();
+}

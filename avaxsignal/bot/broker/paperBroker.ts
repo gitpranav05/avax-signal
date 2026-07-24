@@ -167,4 +167,38 @@ export class PaperBroker extends EventEmitter {
 
   getTrades(): Trade[] { return [...this.trades]; }
   getRecentTrades(n: number = 50): Trade[] { return this.trades.slice(-n); }
+
+  manualBuy(): Trade | null {
+    if (this.currentPrice <= 0) return null;
+    return this.executeBuy({
+      type: "BUY",
+      price: this.currentPrice,
+      timestamp: new Date(),
+      reasons: ["Manual execution"],
+      confidence: 100,
+    });
+  }
+
+  manualSell(): Trade | null {
+    if (this.currentPrice <= 0) return null;
+    return this.executeSell({
+      type: "SELL",
+      price: this.currentPrice,
+      timestamp: new Date(),
+      reasons: ["Manual execution"],
+      confidence: 100,
+    });
+  }
+
+  reset(initialBalance: number = DEFAULT_BALANCE): PortfolioState {
+    this.usdcBalance = initialBalance;
+    this.avaxAmount = 0;
+    this.avgEntryPrice = 0;
+    this.totalRealizedPnl = 0;
+    this.trades = [];
+    this.winningTrades = 0;
+    this.losingTrades = 0;
+    this.emitPortfolioUpdate();
+    return this.getPortfolio();
+  }
 }

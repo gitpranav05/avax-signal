@@ -7,10 +7,13 @@ export const IndicatorPanel: React.FC<Props> = ({ indicators }) => {
   if (!indicators || !indicators.isReady) {
     return (
       <div className="indicator-panel">
-        {['EMA', 'RSI', 'MACD', 'BB'].map(n => (
+        {['EMA (12/26)', 'RSI (14)', 'MACD', 'Bollinger Bands'].map(n => (
           <div key={n} className="indicator-card">
             <div className="indicator-label">{n}</div>
-            <div className="indicator-value indicator-value--warming">Warming up…</div>
+            <div className="indicator-warming-box">
+              <span className="swap-spinner" style={{ width: 12, height: 12 }} />
+              <span>Initializing…</span>
+            </div>
           </div>
         ))}
       </div>

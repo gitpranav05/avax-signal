@@ -3,7 +3,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { getBotStatus, getRecentData } from "../../bot";
+import { getBotStatus, getRecentData, triggerManualBuy, triggerManualSell, resetPaperPortfolio } from "../../bot";
 import { executor } from "../../bot/chain/executor";
 
 const router = Router();
@@ -22,6 +22,29 @@ router.get("/trades", (_req, res) => {
 
 router.get("/portfolio", (_req, res) => {
   res.json(getRecentData().portfolio);
+});
+
+router.post("/portfolio/buy", (_req, res) => {
+  const trade = triggerManualBuy();
+  if (!trade) {
+    res.status(400).json({ error: "Cannot execute BUY (already in position or zero balance)" });
+    return;
+  }
+  res.json({ success: true, trade });
+});
+
+router.post("/portfolio/sell", (_req, res) => {
+  const trade = triggerManualSell();
+  if (!trade) {
+    res.status(400).json({ error: "Cannot execute SELL (no AVAX position to sell)" });
+    return;
+  }
+  res.json({ success: true, trade });
+});
+
+router.post("/portfolio/reset", (_req, res) => {
+  const portfolio = resetPaperPortfolio();
+  res.json({ success: true, portfolio });
 });
 
 router.get("/prices", (_req, res) => {

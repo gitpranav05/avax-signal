@@ -193,6 +193,11 @@ body {
 .indicator-value--sell { color: var(--sell); }
 .indicator-value--neutral { color: var(--text-secondary); }
 .indicator-value--warming { color: var(--text-muted); font-size: 12px; }
+.indicator-warming-box {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-data); font-size: 13px; color: var(--text-muted);
+  padding-top: 2px;
+}
 .indicator-sub { font-family: var(--font-data); font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 /* Signal Feed */
@@ -247,6 +252,25 @@ body {
   font-family: var(--font-data); font-size: 15px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+.portfolio-actions { display: flex; align-items: center; gap: 6px; }
+
+.portfolio-btn {
+  padding: 4px 10px; border-radius: 6px; font-family: var(--font-ui);
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary);
+}
+.portfolio-btn:hover:not(:disabled) { border-color: var(--border-hover); color: var(--text-primary); }
+.portfolio-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.portfolio-btn--buy { border-color: rgba(46, 204, 113, 0.3); background: rgba(46, 204, 113, 0.08); color: var(--buy); }
+.portfolio-btn--buy:hover:not(:disabled) { border-color: var(--buy); background: rgba(46, 204, 113, 0.18); }
+
+.portfolio-btn--sell { border-color: rgba(232, 65, 66, 0.3); background: rgba(232, 65, 66, 0.08); color: var(--sell); }
+.portfolio-btn--sell:hover:not(:disabled) { border-color: var(--sell); background: rgba(232, 65, 66, 0.18); }
+
+.portfolio-btn--reset { border-color: rgba(139, 147, 161, 0.3); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); }
+.portfolio-btn--reset:hover:not(:disabled) { border-color: var(--border-hover); color: var(--text-primary); background: var(--bg-elevated); }
 
 .pnl-positive { color: var(--buy); }
 .pnl-negative { color: var(--sell); }

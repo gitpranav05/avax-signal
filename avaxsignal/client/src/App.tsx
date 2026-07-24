@@ -15,7 +15,6 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <TopBar status={status} currentPrice={currentPrice} />
-      <InfoBar />
       <div className="main-content">
         <div className="left-panel">
           <PriceChart prices={prices} />

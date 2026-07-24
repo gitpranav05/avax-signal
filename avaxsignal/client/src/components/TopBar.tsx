@@ -30,7 +30,6 @@ export const TopBar: React.FC<TopBarProps> = ({ status, currentPrice }) => {
           <span className="status-dot" />
           {label}
         </div>
-        <div className="network-badge">⛰ FUJI TESTNET</div>
       </div>
     </header>
   )
