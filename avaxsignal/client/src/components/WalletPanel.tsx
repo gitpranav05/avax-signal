@@ -1,20 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react'
+/**
+ * WalletPanel.tsx — MetaMask wallet UI
+ *
+ * Replaces the server-side private key wallet with client-side MetaMask signing.
+ * Users connect their own MetaMask → transactions signed locally → no keys on server.
+ */
 
-interface WalletInfo {
-  address: string
-  balanceAVAX: string
-  chainId: number
-  network: string
-}
-
-interface SwapResult {
-  success: boolean
-  txHash: string
-  snowtraceUrl: string
-  amountAVAX: string
-  type: 'BUY' | 'SELL'
-  error?: string
-}
+import React, { useState } from 'react'
+import { useWallet } from '../hooks/useWallet'
 
 type SwapState = 'idle' | 'loading' | 'success' | 'error'
 
@@ -23,95 +15,143 @@ function truncateAddr(addr: string) {
 }
 
 export const WalletPanel: React.FC = () => {
-  const [wallet, setWallet] = useState<WalletInfo | null>(null)
-  const [walletError, setWalletError] = useState<string | null>(null)
+  const {
+    account, balance, chainId, isConnected, isCorrectNetwork,
+    isConnecting, error: walletError,
+    connect, disconnect, switchToFuji, executeSwap, refreshBalance,
+  } = useWallet()
+
   const [swapState, setSwapState] = useState<SwapState>('idle')
-  const [swapResult, setSwapResult] = useState<SwapResult | null>(null)
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [snowtraceUrl, setSnowtraceUrl] = useState<string | null>(null)
   const [swapError, setSwapError] = useState<string | null>(null)
-
-  const fetchWallet = useCallback(async () => {
-    try {
-      const res = await fetch('/api/wallet')
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
-      setWallet(data)
-      setWalletError(null)
-    } catch (err) {
-      setWalletError(err instanceof Error ? err.message : 'Failed to load wallet')
-    }
-  }, [])
-
-  // Load wallet on mount, refresh every 15s
-  useEffect(() => {
-    fetchWallet()
-    const t = setInterval(fetchWallet, 15_000)
-    return () => clearInterval(t)
-  }, [fetchWallet])
 
   const handleSwap = async () => {
     setSwapState('loading')
-    setSwapResult(null)
+    setTxHash(null)
+    setSnowtraceUrl(null)
     setSwapError(null)
 
     try {
-      const res = await fetch('/api/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'BUY', amountAVAX: '0.01' }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Swap failed')
-      }
-      setSwapResult(data)
+      const result = await executeSwap('0.01')
+      setTxHash(result.txHash)
+      setSnowtraceUrl(result.snowtraceUrl)
       setSwapState('success')
-      // Refresh balance after swap
-      setTimeout(fetchWallet, 3000)
-    } catch (err) {
-      setSwapError(err instanceof Error ? err.message : 'Unknown error')
+      // Refresh balance after tx
+      setTimeout(refreshBalance, 3000)
+    } catch (err: any) {
+      setSwapError(err.message ?? 'Transaction failed')
       setSwapState('error')
     }
   }
+
+  // ── Not connected ─────────────────────────────────────────────────
+
+  if (!isConnected) {
+    return (
+      <div className="wallet-panel">
+        <div className="wallet-header">
+          <span className="wallet-title">Wallet</span>
+          <span className="wallet-network-badge">⛰ FUJI TESTNET</span>
+        </div>
+
+        <div className="wallet-connect-prompt">
+          <div className="wallet-connect-icon">🦊</div>
+          <div className="wallet-connect-text">
+            Connect MetaMask to execute real on-chain transactions on Fuji Testnet
+          </div>
+          <button
+            className="wallet-connect-btn"
+            onClick={connect}
+            disabled={isConnecting}
+          >
+            {isConnecting ? (
+              <><span className="swap-spinner" /> Connecting…</>
+            ) : (
+              '🔗 Connect Wallet'
+            )}
+          </button>
+          {walletError && (
+            <div className="wallet-connect-error">{walletError}</div>
+          )}
+          <div className="wallet-connect-note">
+            Need testnet AVAX?{' '}
+            <a href="https://faucet.avax.network/" target="_blank" rel="noopener noreferrer">
+              faucet.avax.network ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Wrong network ─────────────────────────────────────────────────
+
+  if (!isCorrectNetwork) {
+    return (
+      <div className="wallet-panel">
+        <div className="wallet-header">
+          <span className="wallet-title">Wallet</span>
+          <span className="wallet-network-badge wallet-network-badge--wrong">⚠ WRONG NETWORK</span>
+        </div>
+        <div className="wallet-info">
+          <div className="wallet-row">
+            <span className="wallet-label">Address</span>
+            <span className="wallet-value wallet-address">{truncateAddr(account!)}</span>
+          </div>
+          <div className="wallet-row">
+            <span className="wallet-label">Chain ID</span>
+            <span className="wallet-value" style={{ color: 'var(--sell)' }}>{chainId} (need 43113)</span>
+          </div>
+        </div>
+        <button className="swap-btn swap-btn--wrong-network" onClick={switchToFuji}>
+          ⛰ Switch to Fuji Testnet
+        </button>
+        <button className="wallet-disconnect-btn" onClick={disconnect}>
+          Disconnect
+        </button>
+      </div>
+    )
+  }
+
+  // ── Connected + correct network ───────────────────────────────────
 
   return (
     <div className="wallet-panel">
       <div className="wallet-header">
         <span className="wallet-title">Fuji Wallet</span>
-        <span className="wallet-network-badge">⛰ TESTNET</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="wallet-connected-dot" />
+          <span className="wallet-network-badge">⛰ TESTNET</span>
+        </div>
       </div>
 
-      {walletError ? (
-        <div className="wallet-error">{walletError}</div>
-      ) : !wallet ? (
-        <div className="wallet-loading">Loading wallet…</div>
-      ) : (
-        <div className="wallet-info">
-          <div className="wallet-row">
-            <span className="wallet-label">Address</span>
-            <span className="wallet-value wallet-address" title={wallet.address}>
-              {truncateAddr(wallet.address)}
-            </span>
-          </div>
-          <div className="wallet-row">
-            <span className="wallet-label">Balance</span>
-            <span className="wallet-value wallet-balance">
-              {parseFloat(wallet.balanceAVAX).toFixed(4)} AVAX
-            </span>
-          </div>
-          <div className="wallet-row">
-            <span className="wallet-label">Chain ID</span>
-            <span className="wallet-value">{wallet.chainId}</span>
-          </div>
+      <div className="wallet-info">
+        <div className="wallet-row">
+          <span className="wallet-label">Address</span>
+          <span className="wallet-value wallet-address" title={account!}>
+            {truncateAddr(account!)}
+          </span>
         </div>
-      )}
+        <div className="wallet-row">
+          <span className="wallet-label">Balance</span>
+          <span className="wallet-value wallet-balance">
+            {balance ?? '…'} AVAX
+          </span>
+        </div>
+        <div className="wallet-row">
+          <span className="wallet-label">Chain ID</span>
+          <span className="wallet-value">43113</span>
+        </div>
+      </div>
 
       <button
         className={`swap-btn swap-btn--${swapState}`}
         onClick={handleSwap}
-        disabled={swapState === 'loading' || !wallet}
+        disabled={swapState === 'loading'}
       >
         {swapState === 'loading' ? (
-          <><span className="swap-spinner" /> Sending TX…</>
+          <><span className="swap-spinner" /> Waiting for MetaMask…</>
         ) : swapState === 'success' ? (
           '✓ TX Confirmed'
         ) : (
@@ -119,17 +159,17 @@ export const WalletPanel: React.FC = () => {
         )}
       </button>
 
-      {swapState === 'success' && swapResult && (
+      {swapState === 'success' && txHash && (
         <div className="swap-result swap-result--success">
           <div className="swap-result-label">Transaction Hash</div>
           <a
             className="swap-tx-link"
-            href={swapResult.snowtraceUrl}
+            href={snowtraceUrl!}
             target="_blank"
             rel="noopener noreferrer"
-            title={swapResult.txHash}
+            title={txHash}
           >
-            {truncateAddr(swapResult.txHash)}
+            {truncateAddr(txHash)}
             <span className="swap-external-icon">↗</span>
           </a>
           <div className="swap-result-sub">View on Snowtrace ↗</div>
@@ -145,6 +185,10 @@ export const WalletPanel: React.FC = () => {
           </button>
         </div>
       )}
+
+      <button className="wallet-disconnect-btn" onClick={disconnect}>
+        Disconnect
+      </button>
     </div>
   )
 }
