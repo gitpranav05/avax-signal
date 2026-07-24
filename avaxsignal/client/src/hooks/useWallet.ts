@@ -103,18 +103,17 @@ export function useWallet() {
     const onAccountsChanged = (accounts: string[]) => {
       updateAccount(accounts[0] ?? null)
     }
-
-    // Standard practice: reload on chain change so all hooks re-init cleanly
     const onChainChanged = () => window.location.reload()
 
     window.ethereum.on('accountsChanged', onAccountsChanged)
     window.ethereum.on('chainChanged', onChainChanged)
 
-    // Auto-connect if user already connected previously
+    // Auto-reconnect if previously connected (no popup)
+    const wasConnected = localStorage.getItem('avaxsignal_wallet_connected')
     window.ethereum
       .request({ method: 'eth_accounts' })
       .then((accounts: string[]) => {
-        if (accounts.length > 0) updateAccount(accounts[0])
+        if (accounts.length > 0 && wasConnected) updateAccount(accounts[0])
       })
 
     return () => {
@@ -140,6 +139,7 @@ export function useWallet() {
       const accounts: string[] = await window.ethereum.request({
         method: 'eth_requestAccounts',
       })
+      localStorage.setItem('avaxsignal_wallet_connected', '1')
       await updateAccount(accounts[0])
     } catch (err: any) {
       setState(prev => ({
@@ -151,6 +151,7 @@ export function useWallet() {
   }, [updateAccount])
 
   const disconnect = useCallback(() => {
+    localStorage.removeItem('avaxsignal_wallet_connected')
     setState({
       account: null, balance: null, chainId: null,
       isConnected: false, isCorrectNetwork: false,

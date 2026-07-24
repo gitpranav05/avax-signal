@@ -72,6 +72,15 @@ async function fetchOHLCV(poolAddress: string, timeframe: Timeframe): Promise<OH
       open: o, high: h, low: l, close: c,
     }))
     .sort((a, b) => a.time - b.time)
+    // Deduplicate: keep last bar if same timestamp
+    .reduce((acc: OHLCVBar[], bar) => {
+      if (acc.length && acc[acc.length - 1].time === bar.time) {
+        acc[acc.length - 1] = bar
+      } else {
+        acc.push(bar)
+      }
+      return acc
+    }, [])
 }
 
 // ─── Chart constants ──────────────────────────────────────────────────
