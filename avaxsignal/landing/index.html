@@ -307,19 +307,22 @@
     /* ── STATS ROW ───────────────────────── */
     .stats {
       position: relative; z-index: 1;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      display: grid; grid-template-columns: repeat(4, 1fr);
       gap: 1px;
-      max-width: 900px; margin: 0 auto 100px;
-      padding: 0 6vw;
+      max-width: 1000px; margin: 0 auto 100px;
       background: var(--border);
       border-radius: 16px;
       overflow: hidden;
       border: 1px solid var(--border);
     }
 
+    @media (max-width: 768px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
     .stat-card {
       background: var(--bg-card);
-      padding: 32px 28px;
+      padding: 28px 20px;
       text-align: center;
     }
 
@@ -662,10 +665,10 @@
       <span class="stat-value">100%</span>
       <span class="stat-label">On-Chain Data</span>
     </div>
-    <!-- <div class="stat-card">
+    <div class="stat-card">
       <span class="stat-value">0</span>
       <span class="stat-label">Real Funds at Risk</span>
-    </div> -->
+    </div>
   </div>
 
   <!-- FEATURES -->
