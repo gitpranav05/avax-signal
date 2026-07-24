@@ -47,8 +47,15 @@ async function getTopPool(): Promise<string> {
   })
   if (!res.ok) throw new Error('GeckoTerminal pool lookup failed')
   const json = await res.json()
-  // id is like "avax_0xABC..."  strip the prefix
-  const poolId: string = json.data[0].id
+
+  // Filter to find an AVAX/USDC pool (not WETH or other pairs)
+  const pools: any[] = json.data
+  const usdcPool = pools.find((p: any) => {
+    const name: string = p.attributes?.name ?? ''
+    return name.toUpperCase().includes('USDC') || name.toUpperCase().includes('USDT')
+  })
+  const chosen = usdcPool ?? pools[0]
+  const poolId: string = chosen.id
   cachedPool = poolId.includes('_') ? poolId.split('_')[1] : poolId
   return cachedPool
 }
